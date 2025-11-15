@@ -43,6 +43,47 @@ class WeightsState {
 class WeightsCubit extends Cubit<WeightsState> {
   WeightsCubit() : super(WeightsState.initial());
 
+  // Static, hard-coded database of questions / inputs.
+  // This replaces any online or learned dataset: the app simply
+  // shows questions from this static DB and visualizes predictions
+  // depending on the 3 weights and the bias.
+  final List<Map<String, dynamic>> dataset = [
+    // all 8 combinations
+    {
+      'question': 'It is rainy, I have homework, and it\'s the weekend. Should I play?',
+      'input': [1, 1, 1]
+    },
+    {
+      'question': 'It is rainy, I have homework, and it\'s not the weekend. Should I play?',
+      'input': [1, 1, 0]
+    },
+    {
+      'question': 'It is rainy, no homework, weekend. Should I play?',
+      'input': [1, 0, 1]
+    },
+    {
+      'question': 'It is rainy, no homework, not weekend. Should I play?',
+      'input': [1, 0, 0]
+    },
+    {
+      'question': 'Not rainy, I have homework, weekend. Should I play?',
+      'input': [0, 1, 1]
+    },
+    {
+      'question': 'Not rainy, I have homework, not weekend. Should I play?',
+      'input': [0, 1, 0]
+    },
+    {
+      'question': 'Not rainy, no homework, weekend. Should I play?',
+      'input': [0, 0, 1]
+    },
+    {
+      'question': 'Not rainy, no homework, not weekend. Should I play?',
+      'input': [0, 0, 0]
+    },
+  ];
+
+  // Predict using the current weights and bias (sigmoid).
   double predict(List<int> input) {
     final sum =
         state.wRainy * input[0] +
@@ -52,19 +93,24 @@ class WeightsCubit extends Cubit<WeightsState> {
     return 1 / (1 + pow(e, -sum));
   }
 
-  void learn(List<int> input, int target, {double learningRate = 0.2}) {
-    state.toString();
-
-    final prediction = predict(input);
-    final error = target - prediction;
+  // Instead of training, expose setters so the UI can change weights/bias
+  // directly (the child experiments with parameters).
+  void setWeights({double? wRainy, double? wHomework, double? wWeekend}) {
     emit(
       state.copyWith(
-        wRainy: state.wRainy + learningRate * error * input[0],
-        wHomework: state.wHomework + learningRate * error * input[1],
-        wWeekend: state.wWeekend + learningRate * error * input[2],
-        bias: state.bias + learningRate * error,
+        wRainy: wRainy ?? state.wRainy,
+        wHomework: wHomework ?? state.wHomework,
+        wWeekend: wWeekend ?? state.wWeekend,
       ),
     );
+  }
+
+  void setBias(double bias) {
+    emit(state.copyWith(bias: bias));
+  }
+
+  void setAll({required double wRainy, required double wHomework, required double wWeekend, required double bias}) {
+    emit(WeightsState(wRainy: wRainy, wHomework: wHomework, wWeekend: wWeekend, bias: bias));
   }
 
   void reset() {

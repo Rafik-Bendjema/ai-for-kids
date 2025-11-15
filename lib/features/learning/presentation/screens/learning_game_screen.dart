@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math';
 import 'package:kids/features/learning/presentation/widgets/weight_meter.dart';
 import 'package:kids/features/learning/presentation/widgets/yes_no_question_card.dart';
-import 'package:kids/features/learning/presentation/widgets/brain_revising_screen.dart';
 import 'package:kids/features/learning/presentation/widgets/free_play_screen.dart';
-import 'package:kids/features/learning/presentation/widgets/teach_mode_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:kids/features/learning/presentation/bloc/weights_cubit.dart';
 
-enum Phase { modelAsks, revising, teachMode, freePlay }
+enum Phase { modelAsks, freePlay }
 
 class LearningGameScreen extends StatefulWidget {
   const LearningGameScreen({super.key});
@@ -36,7 +33,6 @@ class _LearningGameScreenState extends State<LearningGameScreen>
 
   // Animation controllers
   late AnimationController _weightAnimationController;
-  late AnimationController _brainAnimationController;
 
   @override
   void initState() {
@@ -46,16 +42,11 @@ class _LearningGameScreenState extends State<LearningGameScreen>
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _brainAnimationController = AnimationController(
-      duration: const Duration(seconds: 2),
-      vsync: this,
-    );
   }
 
   @override
   void dispose() {
     _weightAnimationController.dispose();
-    _brainAnimationController.dispose();
     super.dispose();
   }
 
@@ -68,13 +59,13 @@ class _LearningGameScreenState extends State<LearningGameScreen>
 
     // Calculate current prediction
     final prediction = _calculatePrediction(input);
-    // Always update weights (gradient step); don't skip when "correct"
-    _updateWeights(input, target, prediction);
+    // NOTE: Training/teaching removed. We only show predictions. Child can
+    // modify weights in Free Play to see changes. Do not update weights here.
 
     setState(() {
       _currentStep++;
       if (_currentStep >= _questions.length) {
-        _phase = Phase.revising;
+        _phase = Phase.freePlay;
       }
     });
 
@@ -85,30 +76,8 @@ class _LearningGameScreenState extends State<LearningGameScreen>
   }
 
   double _calculatePrediction(List<int> input) {
-    final sum =
-        _weight1 * input[0] + _weight2 * input[1] + _weight3 * input[2] + _bias;
-    return 1 / (1 + pow(e, -sum)); // Sigmoid activation
-  }
-
-  void _updateWeights(List<int> input, int target, double prediction) {
-    const learningRate = 0.2;
-    final error = target - prediction;
-    print("updating wights");
-    context.read<WeightsCubit>().learn(
-      input,
-      target,
-      learningRate: learningRate,
-    );
-  }
-
-  void _startBrainRevising() {
-    _brainAnimationController.forward();
-  }
-
-  void _goToFreePlay() {
-    setState(() {
-      _phase = Phase.freePlay;
-    });
+    // Use BLoC's predict so the canonical computation stays in the cubit.
+    return context.read<WeightsCubit>().predict(input);
   }
 
   void _resetGame() {
@@ -118,7 +87,6 @@ class _LearningGameScreenState extends State<LearningGameScreen>
     });
     context.read<WeightsCubit>().reset();
     _weightAnimationController.reset();
-    _brainAnimationController.reset();
   }
 
   @override
@@ -150,29 +118,6 @@ class _LearningGameScreenState extends State<LearningGameScreen>
     switch (_phase) {
       case Phase.modelAsks:
         return _buildQuizScreen();
-      case Phase.revising:
-        return BrainRevisingScreen(
-          onContinue: () {
-            setState(() {
-              _phase = Phase.teachMode;
-            });
-          },
-          animationController: _brainAnimationController,
-        );
-      case Phase.teachMode:
-        return TeachModeScreen(
-          onConfirm: (rainy, homework, weekend, kidSaysPlay) {
-            final input = [rainy ? 1 : 0, homework ? 1 : 0, weekend ? 1 : 0];
-            final target = kidSaysPlay ? 1 : 0;
-            final prediction = _calculatePrediction(input);
-            _updateWeights(input, target, prediction);
-            _weightAnimationController.forward().then((_) {
-              _weightAnimationController.reset();
-            });
-          },
-          onDone: _goToFreePlay,
-          weightAnimationController: _weightAnimationController,
-        );
       case Phase.freePlay:
         return FreePlayScreen(onReset: _resetGame);
     }

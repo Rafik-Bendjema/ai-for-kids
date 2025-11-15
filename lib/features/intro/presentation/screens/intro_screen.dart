@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:kids/features/shared/widgets/flexible_animation_widget.dart';
 import 'package:kids/features/shared/widgets/custom_button.dart';
-import 'package:kids/features/learning/presentation/screens/learning_game_screen.dart';
+import 'package:kids/features/learning/presentation/widgets/free_play_screen.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:kids/features/learning/presentation/bloc/weights_cubit.dart';
+import 'package:kids/features/learning/presentation/bloc/neural_network_cubit.dart';
 
 class IntroScreen extends StatefulWidget {
   const IntroScreen({super.key});
@@ -58,8 +58,10 @@ class _IntroScreenState extends State<IntroScreen> {
         context,
         MaterialPageRoute(
           builder: (context) => BlocProvider(
-            create: (_) => WeightsCubit(),
-            child: const LearningGameScreen(),
+            create: (_) => NeuralNetworkCubit(),
+            child: FreePlayScreen(
+              onReset: () => Navigator.of(context).pop(),
+            ),
           ),
         ),
       );
